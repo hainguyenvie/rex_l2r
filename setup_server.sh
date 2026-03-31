@@ -73,12 +73,20 @@ if [ ! -f "weights/groundingdino_swint_ogc.pth" ]; then
 fi
 cd ..
 
+echo "=== Bước đệm: Fix numpy conflict ==="
+# Hạ cấp Numpy do pip tự cài bản 2.2.6 làm xung đột thư viện vllm
+pip install "numpy<2.0.0"
+
 echo "=== 5. Download Rex-Thinker-GRPO Weights ==="
-git lfs install
-if [ ! -d "IDEA-Research/Rex-Thinker-GRPO-7B" ]; then
-    mkdir -p IDEA-Research
-    git clone https://huggingface.co/IDEA-Research/Rex-Thinker-GRPO-7B IDEA-Research/Rex-Thinker-GRPO-7B
+# Git LFS thường bị ngắt kết nối với file lớn dẫn tới lỗi smudge filter
+# Dùng thư viện HuggingFace CLI để tải đa luồng và tự động resume an toàn
+if [ -d "IDEA-Research/Rex-Thinker-GRPO-7B/.git" ]; then
+    echo "Xóa file .git cũ bị hụt dữ liệu..."
+    rm -rf IDEA-Research/Rex-Thinker-GRPO-7B
 fi
+
+pip install -U "huggingface_hub[cli]"
+huggingface-cli download IDEA-Research/Rex-Thinker-GRPO-7B --local-dir IDEA-Research/Rex-Thinker-GRPO-7B
 
 echo "=== Environment and Weights Setup Complete ==="
 echo "Bạn có thể chạy thử nghiệm bằng bash run_experiment.sh"
