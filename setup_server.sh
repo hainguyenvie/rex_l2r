@@ -13,7 +13,8 @@ echo "=== 2. Install PyTorch & Dependencies ==="
 pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
 
 # Sửa lỗi build flash-attention (Né lỗi thiếu torch do pip bị cô lập môi trường chuẩn PEP 517)
-pip install packaging ninja
+# Khi dùng --no-build-isolation, ta phải tự cung cấp mọi thư viện phụ thuộc cho quá trình build.
+pip install packaging ninja psutil wheel
 pip install flash-attn --no-build-isolation
 
 # Cài đặt Rex-Thinker core
