@@ -11,6 +11,11 @@ conda activate rexthinker_sg
 echo "=== 2. Install PyTorch & Dependencies ==="
 # Cài đặt PyTorch hỗ trợ GPU
 pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
+
+# Sửa lỗi build flash-attention (Né lỗi thiếu torch do pip bị cô lập môi trường chuẩn PEP 517)
+pip install packaging ninja
+pip install flash-attn --no-build-isolation
+
 # Cài đặt Rex-Thinker core
 cd Rex-Thinker
 pip install -v -e .
