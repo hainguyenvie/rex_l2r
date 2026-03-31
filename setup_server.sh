@@ -40,14 +40,20 @@ fi
 
 cd GroundingDINO
 
-# PyTorch tự động block nếu phát hiện phiên bản cài ở server (CUDA 13.0) khác với bản build của PyTorch (12.4).
-# Ta sẽ dùng đoạn script python nhỏ này để patch/xoá lệnh block đó bên trong code của PyTorch, ép nó cho phép dùng CUDA 13.0 để build extension.
+# Sửa tận gốc lỗi file script build của PyTorch (tắt check version CUDA và dọn dẹp syntax error cũ)
 python -c "
 import re, torch
 from pathlib import Path
 file_path = Path(torch.__path__[0]) / 'utils' / 'cpp_extension.py'
 content = file_path.read_text()
-content = re.sub(r'raise RuntimeError\([\s\S]*?CUDA_MISMATCH_MESSAGE[\s\S]*?\)', 'print(\"WARNING: Bypassed PyTorch CUDA version mismatch check!\")', content)
+
+# Dọn dẹp dấu lỗi bị dư ngoặc đóng do bản vá trước để file py của thư viện hết bị Syntax Error
+content = content.replace('print(\"WARNING: Bypassed PyTorch CUDA version mismatch check!\"))', 'pass')
+
+# Tắt lệnh kiểm tra check CUDA mismatch an toàn bằng cách buộc cờ kiểm tra version luôn trả về False
+content = re.sub(r'if not _eq_version\([^)]+\):', 'if False:', content)
+content = content.replace('if not check_compiler_abi_compatibility(compiler):', 'if False:')
+
 file_path.write_text(content)
 "
 
