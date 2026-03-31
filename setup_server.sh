@@ -35,9 +35,13 @@ if [ ! -d "GroundingDINO" ]; then
     git remote add quantumope https://github.com/QuantuMope/GroundingDINO.git
     git fetch quantumope PR/andrew/add-torch26-support-ms-deform-attn
     git merge quantumope/PR/andrew/add-torch26-support-ms-deform-attn -m "Merge update"
-    pip install -v -e .
     cd ..
 fi
+
+cd GroundingDINO
+# Dùng --no-build-isolation để ngăn setup.py tự gọi ngầm subprocess lỗi
+pip install -v --no-build-isolation -e .
+cd ..
 
 echo "=== 4. Download Grounding DINO Weights ==="
 cd GroundingDINO
