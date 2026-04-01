@@ -49,10 +49,11 @@ echo "=== 3. Install PyTorch & Dependencies ==="
 # Cài đặt PyTorch hỗ trợ GPU
 pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
 
-# Sửa lỗi build flash-attention (Né lỗi thiếu torch do pip bị cô lập môi trường chuẩn PEP 517)
-# Khi dùng --no-build-isolation, ta phải tự cung cấp mọi thư viện phụ thuộc cho quá trình build.
+# Build flash-attention từ source để đảm bảo đúng ABI với PyTorch hiện tại.
+# PHẢI uninstall trước để xóa binary cache bị mismatch.
 pip install packaging ninja psutil wheel
-pip install flash-attn --no-build-isolation
+pip uninstall flash-attn -y 2>/dev/null || true
+MAX_JOBS=4 pip install flash-attn --no-build-isolation --no-cache-dir
 
 # Cài đặt thư viện đánh giá (cần cho calibrate_tau.py và metric.py)
 pip install scipy scikit-learn tabulate pycocotools

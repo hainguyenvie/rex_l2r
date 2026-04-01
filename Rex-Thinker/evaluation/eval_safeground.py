@@ -37,50 +37,32 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 
-# ── Block broken flash_attn BEFORE importing transformers ──────────────────────
-# Strategy: inject a meta_path hook that intercepts ANY flash_attn import.
-# transformers dùng is_flash_attn_available() → nếu ImportError → dùng sdpa.
-# Cần chặn ở tầng import machinery, không chỉ xóa sys.modules.
-import sys as _sys
-
-def _check_flash_attn_ok():
-    """Return True only if flash_attn C extension loads without ABI errors."""
-    try:
-        import flash_attn
-        from flash_attn.flash_attn_interface import flash_attn_varlen_func  # noqa
-        return True
-    except Exception:
-        return False
-
-_FLASH_ATN_OK = _check_flash_attn_ok()
-
-if not _FLASH_ATN_OK:
-    # Clean up broken flash_attn from sys.modules
-    for _mod in list(_sys.modules.keys()):
-        if "flash_attn" in _mod:
-            del _sys.modules[_mod]
-
-    # Install a meta_path blocker so Python can't find flash_attn on disk
-    class _FlashAttnBlocker:
-        """Intercepts any import of flash_attn and raises ImportError."""
-        def find_module(self, name, path=None):
-            if name.startswith("flash_attn"):
-                return self
-            return None
-        def load_module(self, name):
-            raise ImportError(
-                f"flash_attn blocked (ABI mismatch with current PyTorch). "
-                f"Reinstall with: pip uninstall flash-attn -y && "
-                f"pip install flash-attn --no-build-isolation"
-            )
-
-    _sys.meta_path.insert(0, _FlashAttnBlocker())
-    _ATTN_IMPL = "sdpa"
-    print("[INFO] flash_attn has ABI mismatch → blocked, using sdpa (slightly slower)")
-    print("[INFO] To fix permanently: pip uninstall flash-attn -y && pip install flash-attn --no-build-isolation")
-else:
+# ── Detect attention backend ───────────────────────────────────────────────────
+# flash-attn phải được build từ source cùng PyTorch version.
+# Nếu bị ABI mismatch → uninstall và rebuild: pip uninstall flash-attn -y && pip install flash-attn --no-build-isolation
+try:
+    from flash_attn.flash_attn_interface import flash_attn_varlen_func  # noqa: ABI test
     _ATTN_IMPL = "flash_attention_2"
-    print("[INFO] flash_attn OK → using flash_attention_2")
+    print("[INFO] Using flash_attention_2")
+except Exception as _e:
+    _ATTN_IMPL = "sdpa"
+    print(f"[WARN] flash_attn broken ({type(_e).__name__}), using sdpa.")
+    print("[WARN] Fix: pip uninstall flash-attn -y && pip install flash-attn --no-build-isolation")
+    # Xóa flash_attn khỏi sys.modules để transformers không cố import nó nữa
+    import sys as _sys
+    for _k in list(_sys.modules.keys()):
+        if "flash_attn" in _k:
+            del _sys.modules[_k]
+    # Patch transformers để không import flash_attn ở module level
+    import importlib, types as _types
+    _fake_fa = _types.ModuleType("flash_attn")
+    _fake_fa.bert_padding = _types.ModuleType("flash_attn.bert_padding")
+    _fake_fa.bert_padding.index_first_axis = None
+    _fake_fa.bert_padding.pad_input = None
+    _fake_fa.bert_padding.unpad_input = None
+    _sys.modules["flash_attn"] = _fake_fa
+    _sys.modules["flash_attn.bert_padding"] = _fake_fa.bert_padding
+    _sys.modules["flash_attn.flash_attn_interface"] = _types.ModuleType("flash_attn.flash_attn_interface")
 
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 from qwen_vl_utils import process_vision_info, smart_resize
