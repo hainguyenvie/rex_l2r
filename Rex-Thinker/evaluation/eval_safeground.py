@@ -37,32 +37,24 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 
-# ── Detect attention backend ───────────────────────────────────────────────────
-# flash-attn phải được build từ source cùng PyTorch version.
-# Nếu bị ABI mismatch → uninstall và rebuild: pip uninstall flash-attn -y && pip install flash-attn --no-build-isolation
+# ── Detect & neutralize broken flash_attn BEFORE importing transformers ────────
+# Kỹ thuật: sys.modules[name] = None là "negative cache" chuẩn của Python.
+# importlib.util.find_spec() trả về None → is_flash_attn_2_available() = False
+# → transformers không import flash_attn ở bất kỳ đâu.
 try:
     from flash_attn.flash_attn_interface import flash_attn_varlen_func  # noqa: ABI test
     _ATTN_IMPL = "flash_attention_2"
     print("[INFO] Using flash_attention_2")
 except Exception as _e:
-    _ATTN_IMPL = "sdpa"
-    print(f"[WARN] flash_attn broken ({type(_e).__name__}), using sdpa.")
-    print("[WARN] Fix: pip uninstall flash-attn -y && pip install flash-attn --no-build-isolation")
-    # Xóa flash_attn khỏi sys.modules để transformers không cố import nó nữa
     import sys as _sys
+    # Xóa tất cả flash_attn entries khỏi sys.modules
     for _k in list(_sys.modules.keys()):
         if "flash_attn" in _k:
             del _sys.modules[_k]
-    # Patch transformers để không import flash_attn ở module level
-    import importlib, types as _types
-    _fake_fa = _types.ModuleType("flash_attn")
-    _fake_fa.bert_padding = _types.ModuleType("flash_attn.bert_padding")
-    _fake_fa.bert_padding.index_first_axis = None
-    _fake_fa.bert_padding.pad_input = None
-    _fake_fa.bert_padding.unpad_input = None
-    _sys.modules["flash_attn"] = _fake_fa
-    _sys.modules["flash_attn.bert_padding"] = _fake_fa.bert_padding
-    _sys.modules["flash_attn.flash_attn_interface"] = _types.ModuleType("flash_attn.flash_attn_interface")
+    # Đặt negative cache → Python coi flash_attn như không tồn tại
+    _sys.modules["flash_attn"] = None
+    _ATTN_IMPL = "sdpa"
+    print(f"[WARN] flash_attn broken ({type(_e).__name__}), neutralized → using sdpa.")
 
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 from qwen_vl_utils import process_vision_info, smart_resize
