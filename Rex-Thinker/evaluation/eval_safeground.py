@@ -196,9 +196,9 @@ def boxes_to_prob_dist(sampled_boxes_list, candidate_boxes, iou_thresh=0.5):
     return probs, counts
 
 
-def run_single_inference(model, processor, image, prompt, min_pixels, max_pixels, max_new_tokens,
-                         temperature, do_sample=True):
-    """Run one stochastic forward pass, return (pred_boxes_in_input_space, input_h, input_w)."""
+def run_batch_inference(model, processor, image, prompt, min_pixels, max_pixels, max_new_tokens,
+                         temperature, num_samples, do_sample=True):
+    """Run K stochastic forward passes in a single batch, return lists of boxes."""
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": [{"type": "image", "image": image}, {"type": "text", "text": prompt}]}
@@ -216,13 +216,20 @@ def run_single_inference(model, processor, image, prompt, min_pixels, max_pixels
     with torch.no_grad():
         gen_ids = model.generate(
             **inputs, max_new_tokens=max_new_tokens,
-            do_sample=do_sample, temperature=temperature
+            do_sample=do_sample, temperature=temperature,
+            num_return_sequences=num_samples
         )
-    trimmed = [out[len(inp):] for inp, out in zip(inputs.input_ids, gen_ids)]
-    output_text = processor.batch_decode(trimmed, skip_special_tokens=True,
-                                         clean_up_tokenization_spaces=False)[0]
-    boxes_in_input_space = parse_box_output(output_text)
-    return boxes_in_input_space, input_h.item(), input_w.item()
+        
+    input_len = inputs.input_ids.shape[1]
+    trimmed = [out[input_len:] for out in gen_ids]
+    output_texts = processor.batch_decode(trimmed, skip_special_tokens=True,
+                                         clean_up_tokenization_spaces=False)
+                                         
+    batch_boxes_input_space = []
+    for out_text in output_texts:
+        batch_boxes_input_space.append(parse_box_output(out_text))
+        
+    return batch_boxes_input_space, input_h.item(), input_w.item()
 
 
 def scale_boxes_to_orig(boxes_input_space, input_h, input_w, orig_w, orig_h):
@@ -327,24 +334,24 @@ def main():
             f"Please detect {referring} in the image."
         )
 
-        # ── K stochastic forward passes ───────────────────────────────────────
+        # ── K stochastic forward passes (Batched) ─────────────────────────────
         sampled_first_boxes = []  # one predicted box per sample pass
-        for k in range(args.num_samples):
-            try:
-                boxes_input, in_h, in_w = run_single_inference(
-                    model, processor, image, prompt,
-                    args.min_pixels, args.max_pixels, args.max_new_tokens,
-                    args.temperature
-                )
+        try:
+            batch_boxes, in_h, in_w = run_batch_inference(
+                model, processor, image, prompt,
+                args.min_pixels, args.max_pixels, args.max_new_tokens,
+                args.temperature, args.num_samples
+            )
+            for boxes_input in batch_boxes:
                 if boxes_input:
-                    # Take the first predicted box (most confident)
+                    # Take the first predicted box (most confident in that sample)
                     b_orig = scale_boxes_to_orig([boxes_input[0]], in_h, in_w, w, h)[0]
                     sampled_first_boxes.append(b_orig)
                 else:
                     sampled_first_boxes.append(None)  # rejection signal
-            except Exception as e:
-                print(f"[WARN] Sample k={k} failed for id={sample_id}: {e}")
-                sampled_first_boxes.append(None)
+        except Exception as e:
+            print(f"[WARN] Batch sampling failed for id={sample_id}: {e}")
+            sampled_first_boxes = [None] * args.num_samples
 
         # ── Compute UQ metrics ────────────────────────────────────────────────
         probs, idx_counts = boxes_to_prob_dist(sampled_first_boxes, gdino_boxes,
