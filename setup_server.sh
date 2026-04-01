@@ -46,8 +46,8 @@ conda create -n rexthinker_sg -y python=3.10
 conda activate rexthinker_sg
 
 echo "=== 3. Install PyTorch & Dependencies ==="
-# Cài đặt PyTorch hỗ trợ GPU
-pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
+# Hạ cấp PyTorch xuống 2.5.1 (PyTorch 2.6.0 vừa mới ra mắt làm hỏng C++ ABI của flash-attention gây lỗi undefined symbol)
+pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124
 
 # Build flash-attention từ source để đảm bảo đúng ABI với PyTorch hiện tại.
 # PHẢI uninstall trước để xóa binary cache bị mismatch.
