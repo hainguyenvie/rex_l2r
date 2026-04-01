@@ -37,24 +37,21 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 
-# ── Detect & neutralize broken flash_attn BEFORE importing transformers ────────
-# Kỹ thuật: sys.modules[name] = None là "negative cache" chuẩn của Python.
-# importlib.util.find_spec() trả về None → is_flash_attn_2_available() = False
-# → transformers không import flash_attn ở bất kỳ đâu.
+# ── Detect & neutralize broken flash_attn BEFORE importing Qwen2.5-VL ─────────
+# Kỹ thuật: thay vì chọc vào sys.modules (gây lỗi importlib find_spec),
+# ta monkeypatch trực tiếp hàm check của transformers.
 try:
     from flash_attn.flash_attn_interface import flash_attn_varlen_func  # noqa: ABI test
     _ATTN_IMPL = "flash_attention_2"
     print("[INFO] Using flash_attention_2")
 except Exception as _e:
-    import sys as _sys
-    # Xóa tất cả flash_attn entries khỏi sys.modules
-    for _k in list(_sys.modules.keys()):
-        if "flash_attn" in _k:
-            del _sys.modules[_k]
-    # Đặt negative cache → Python coi flash_attn như không tồn tại
-    _sys.modules["flash_attn"] = None
     _ATTN_IMPL = "sdpa"
     print(f"[WARN] flash_attn broken ({type(_e).__name__}), neutralized → using sdpa.")
+    
+    import transformers.utils.import_utils as _import_utils
+    # Ghi đè hàm check của transformers để nó tưởng flash_attn không cài đặt
+    _import_utils.is_flash_attn_2_available = lambda: False
+    _import_utils.is_flash_attn_available = lambda: False
 
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 from qwen_vl_utils import process_vision_info, smart_resize

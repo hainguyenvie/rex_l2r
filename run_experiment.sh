@@ -59,6 +59,9 @@ echo "    → UQ: UCOM = 0.4*TA + 0.3*IE + 0.3*CD (SafeGround)"
 echo "    → Output: $SAVE_DIR/eval_sg_preds.jsonl + eval_sg_ucom.jsonl"
 # =============================================================================
 
+# Clean up any partial files from previous failed runs (since eval.py appends)
+rm -f "$SAVE_DIR"/eval_sg_preds.jsonl "$SAVE_DIR"/eval_sg_ucom.jsonl "$SAVE_DIR"/eval_sg_merged.jsonl
+
 # Support sharding: set START_IDX and END_IDX env vars to parallelize across GPUs
 START_IDX=${START_IDX:-0}
 END_IDX=${END_IDX:-6001}
