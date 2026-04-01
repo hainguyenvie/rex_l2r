@@ -36,6 +36,24 @@ from collections import Counter
 import torch
 from PIL import Image
 from tqdm import tqdm
+
+# ── Pre-check flash_attn BEFORE importing transformers ─────────────────────────
+# transformers sẽ tự import flash_attn khi load Qwen2_5_VL nếu nó available.
+# Nếu flash_attn bị ABI mismatch, cần xóa nó khỏi sys.modules trước.
+import sys as _sys
+try:
+    import flash_attn as _fa
+    from flash_attn.flash_attn_interface import flash_attn_varlen_func  # noqa: test ABI
+    _ATTN_IMPL = "flash_attention_2"
+    print("[INFO] flash_attn available → using flash_attention_2")
+except Exception as _e:
+    # Xóa flash_attn khỏi sys.modules để transformers không cố dùng nó
+    for _mod in list(_sys.modules.keys()):
+        if "flash_attn" in _mod:
+            del _sys.modules[_mod]
+    _ATTN_IMPL = "sdpa"
+    print(f"[INFO] flash_attn ABI mismatch ({_e}), using sdpa (slightly slower)")
+
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 from qwen_vl_utils import process_vision_info, smart_resize
 
@@ -236,10 +254,10 @@ def main():
     gdino_model = load_model(args.gdino_config, args.gdino_weights)
     gdino_model.eval()
 
-    print("Loading Rex-Thinker-GRPO model...")
+    print(f"Loading Rex-Thinker-GRPO model (attn={_ATTN_IMPL})...")
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         args.model_path, torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2", device_map="auto"
+        attn_implementation=_ATTN_IMPL, device_map="auto"
     )
     processor = AutoProcessor.from_pretrained(
         args.model_path, min_pixels=args.min_pixels, max_pixels=args.max_pixels
