@@ -35,17 +35,22 @@ cd Rex-Thinker
 echo "=== Step 1: Download HumanRef Dataset (if not present) ==="
 # =============================================================================
 if [ ! -f "$ANNO_PATH" ]; then
-    echo "HumanRef not found → Downloading from HuggingFace..."
+    echo "HumanRef annotations not found → Downloading from HuggingFace..."
     mkdir -p data/IDEA-Research
     
     # Download annotations + images via huggingface-cli
     huggingface-cli download IDEA-Research/HumanRef \
         --repo-type dataset \
         --local-dir data/IDEA-Research/HumanRef
-    
-    echo "✅ HumanRef downloaded to data/IDEA-Research/HumanRef/"
 else
     echo "✅ HumanRef already exists at $ANNO_PATH"
+fi
+
+# Ensure images are extracted
+if [ ! -d "$IMAGE_DIR" ] && [ -f "data/IDEA-Research/HumanRef/images.zip" ]; then
+    echo "Unzipping images.zip..."
+    unzip -q -o data/IDEA-Research/HumanRef/images.zip -d data/IDEA-Research/HumanRef/
+    echo "✅ Images extracted to $IMAGE_DIR"
 fi
 
 # Verify annotation file
