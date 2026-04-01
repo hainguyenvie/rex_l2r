@@ -49,6 +49,10 @@ fi
 # Ensure images are extracted
 if [ ! -d "$IMAGE_DIR" ] && [ -f "data/IDEA-Research/HumanRef/images.zip" ]; then
     echo "Unzipping images.zip..."
+    if ! command -v unzip &> /dev/null; then
+        echo "Installing unzip..."
+        apt-get update -y && apt-get install unzip -y 2>/dev/null || sudo apt-get update -y && sudo apt-get install unzip -y
+    fi
     unzip -q -o data/IDEA-Research/HumanRef/images.zip -d data/IDEA-Research/HumanRef/
     echo "✅ Images extracted to $IMAGE_DIR"
 fi
