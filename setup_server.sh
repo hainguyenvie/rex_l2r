@@ -1,5 +1,19 @@
 #!/bin/bash
+# =============================================================================
+# setup_server.sh — One-shot environment setup for Rex-Thinker + SafeGround
+# =============================================================================
+# Usage (sau khi git clone rex_l2r):
+#   bash setup_server.sh
+# =============================================================================
 set -e
+
+echo "=== 0. Clone Rex-Thinker (if not present) ==="
+if [ ! -d "Rex-Thinker" ]; then
+    git clone https://github.com/IDEA-Research/Rex-Thinker.git
+    echo "✅ Rex-Thinker cloned"
+else
+    echo "✅ Rex-Thinker already exists, skipping clone"
+fi
 
 echo "=== 1. Create Conda Environment ==="
 # Cài đặt môi trường conda mới
@@ -16,6 +30,9 @@ pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorc
 # Khi dùng --no-build-isolation, ta phải tự cung cấp mọi thư viện phụ thuộc cho quá trình build.
 pip install packaging ninja psutil wheel
 pip install flash-attn --no-build-isolation
+
+# Cài đặt thư viện đánh giá (cần cho calibrate_tau.py và metric.py)
+pip install scipy scikit-learn tabulate pycocotools
 
 # Cài đặt Rex-Thinker core
 cd Rex-Thinker
@@ -85,7 +102,7 @@ if [ -d "IDEA-Research/Rex-Thinker-GRPO-7B/.git" ]; then
     rm -rf IDEA-Research/Rex-Thinker-GRPO-7B
 fi
 
-pip install -U "huggingface_hub[cli]"
+pip install "huggingface_hub<1.0.0"
 huggingface-cli download IDEA-Research/Rex-Thinker-GRPO-7B --local-dir IDEA-Research/Rex-Thinker-GRPO-7B
 
 echo "=== Environment and Weights Setup Complete ==="
