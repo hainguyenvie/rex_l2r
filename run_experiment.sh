@@ -11,7 +11,10 @@
 set -e
 
 # ── Activate conda env ────────────────────────────────────────────────────────
-source "$(conda info --base)/etc/profile.d/conda.sh"
+# Hardcode miniconda path để tránh lỗi khi conda chưa được load vào PATH
+CONDA_DIR="${CONDA_DIR:-$HOME/miniconda3}"
+export PATH="$CONDA_DIR/bin:$PATH"
+source "$CONDA_DIR/etc/profile.d/conda.sh"
 conda activate rexthinker_sg
 
 # ── Config ────────────────────────────────────────────────────────────────────
