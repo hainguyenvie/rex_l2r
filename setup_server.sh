@@ -16,22 +16,30 @@ else
 fi
 
 echo "=== 1. Install Miniconda (if not present) ==="
-if ! command -v conda &> /dev/null; then
+CONDA_DIR="$HOME/miniconda3"
+CONDA_BIN="$CONDA_DIR/bin/conda"
+
+if [ ! -f "$CONDA_BIN" ]; then
     echo "Conda not found → Installing Miniconda..."
     wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh
-    bash /tmp/miniconda.sh -b -p "$HOME/miniconda3"
+    # -b = batch/silent, -u = update nếu đã tồn tại, -p = prefix
+    bash /tmp/miniconda.sh -b -u -p "$CONDA_DIR"
     rm /tmp/miniconda.sh
-    # Thêm conda vào PATH cho phiên hiện tại
-    export PATH="$HOME/miniconda3/bin:$PATH"
-    # Init conda cho bash (để lần sau tự động load)
-    conda init bash
-    echo "✅ Miniconda installed at $HOME/miniconda3"
+    echo "✅ Miniconda installed at $CONDA_DIR"
 else
-    echo "✅ Conda already installed: $(conda --version)"
+    echo "✅ Conda already installed: $($CONDA_BIN --version)"
 fi
 
+# Đảm bảo conda trong PATH cho script hiện tại
+export PATH="$CONDA_DIR/bin:$PATH"
+
+# Accept Anaconda TOS (bắt buộc từ 2024 cho repo chính thức)
+echo "Accepting Conda Terms of Service..."
+"$CONDA_BIN" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main || true
+"$CONDA_BIN" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r || true
+
 # Load conda shell functions vào script hiện tại
-source "$(conda info --base)/etc/profile.d/conda.sh"
+source "$CONDA_DIR/etc/profile.d/conda.sh"
 
 echo "=== 2. Create Conda Environment ==="
 conda create -n rexthinker_sg -y python=3.10
