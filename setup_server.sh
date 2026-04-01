@@ -15,14 +15,29 @@ else
     echo "✅ Rex-Thinker already exists, skipping clone"
 fi
 
-echo "=== 1. Create Conda Environment ==="
-# Cài đặt môi trường conda mới
-conda create -n rexthinker_sg -y python=3.10
-# Kích hoạt conda trong bash script
+echo "=== 1. Install Miniconda (if not present) ==="
+if ! command -v conda &> /dev/null; then
+    echo "Conda not found → Installing Miniconda..."
+    wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh
+    bash /tmp/miniconda.sh -b -p "$HOME/miniconda3"
+    rm /tmp/miniconda.sh
+    # Thêm conda vào PATH cho phiên hiện tại
+    export PATH="$HOME/miniconda3/bin:$PATH"
+    # Init conda cho bash (để lần sau tự động load)
+    conda init bash
+    echo "✅ Miniconda installed at $HOME/miniconda3"
+else
+    echo "✅ Conda already installed: $(conda --version)"
+fi
+
+# Load conda shell functions vào script hiện tại
 source "$(conda info --base)/etc/profile.d/conda.sh"
+
+echo "=== 2. Create Conda Environment ==="
+conda create -n rexthinker_sg -y python=3.10
 conda activate rexthinker_sg
 
-echo "=== 2. Install PyTorch & Dependencies ==="
+echo "=== 3. Install PyTorch & Dependencies ==="
 # Cài đặt PyTorch hỗ trợ GPU
 pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
 

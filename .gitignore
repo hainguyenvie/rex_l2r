@@ -1,0 +1,27 @@
+# AI assistant framework (not research code)
+.agent/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Experiment outputs (large, không commit)
+results/
+*.jsonl
+
+# Model weights (quá lớn cho git)
+IDEA-Research/
+GroundingDINO/weights/
+
+# Data (download via script)
+data/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# System
+.DS_Store
+*.swp
